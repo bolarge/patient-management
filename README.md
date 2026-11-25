@@ -1,93 +1,407 @@
-# stsl-estate-service
+###### Copyright © 2025 Code Jackal | Original Course Material by Chris Blakely
+
+---
+# Join the Discord Community
+
+This source code is for the Java/Spring microservices course available on my 
+YouTube channel. You can join the discord for help and discussion here:
+
+https://discord.gg/nCrDnfCE
 
 
+# Patient Service
 
-## Getting started
+---
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
-
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
-
-## Add your files
-
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
+## Environment Variables
 
 ```
-cd existing_repo
-git remote add origin https://gitlab.com/stsl-infrastructure/stsl-estate-service.git
-git branch -M main
-git push -uf origin main
+JAVA_TOOL_OPTIONS=-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005;
+SPRING_DATASOURCE_PASSWORD=password;
+SPRING_DATASOURCE_URL=jdbc:postgresql://patient-service-db:5432/db;
+SPRING_DATASOURCE_USERNAME=admin_user;
+SPRING_JPA_HIBERNATE_DDL_AUTO=update;
+SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092;
+SPRING_SQL_INIT_MODE=always
 ```
 
-## Integrate with your tools
+# Billing Service
 
-- [ ] [Set up project integrations](https://gitlab.com/stsl-infrastructure/stsl-estate-service/-/settings/integrations)
+---
 
-## Collaborate with your team
+## gRPC Setup
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
+Add the following to the `<dependencies>` section
+```
+<!--GRPC -->
+<dependency>
+    <groupId>io.grpc</groupId>
+    <artifactId>grpc-netty-shaded</artifactId>
+    <version>1.69.0</version>
+</dependency>
+<dependency>
+    <groupId>io.grpc</groupId>
+    <artifactId>grpc-protobuf</artifactId>
+    <version>1.69.0</version>
+</dependency>
+<dependency>
+    <groupId>io.grpc</groupId>
+    <artifactId>grpc-stub</artifactId>
+    <version>1.69.0</version>
+</dependency>
+<dependency> <!-- necessary for Java 9+ -->
+    <groupId>org.apache.tomcat</groupId>
+    <artifactId>annotations-api</artifactId>
+    <version>6.0.53</version>
+    <scope>provided</scope>
+</dependency>
+<dependency>
+    <groupId>net.devh</groupId>
+    <artifactId>grpc-spring-boot-starter</artifactId>
+    <version>3.1.0.RELEASE</version>
+</dependency>
+<dependency>
+    <groupId>com.google.protobuf</groupId>
+    <artifactId>protobuf-java</artifactId>
+    <version>4.29.1</version>
+</dependency>
 
-## Test and Deploy
+```
 
-Use the built-in continuous integration in GitLab.
+Replace the `<build>` section with the following
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+```
 
-***
+<build>
+    <extensions>
+        <!-- Ensure OS compatibility for protoc -->
+        <extension>
+            <groupId>kr.motd.maven</groupId>
+            <artifactId>os-maven-plugin</artifactId>
+            <version>1.7.0</version>
+        </extension>
+    </extensions>
+    <plugins>
+        <!-- Spring boot / maven  -->
+        <plugin>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-maven-plugin</artifactId>
+        </plugin>
 
-# Editing this README
+        <!-- PROTO -->
+        <plugin>
+            <groupId>org.xolstice.maven.plugins</groupId>
+            <artifactId>protobuf-maven-plugin</artifactId>
+            <version>0.6.1</version>
+            <configuration>
+                <protocArtifact>com.google.protobuf:protoc:3.25.5:exe:${os.detected.classifier}</protocArtifact>
+                <pluginId>grpc-java</pluginId>
+                <pluginArtifact>io.grpc:protoc-gen-grpc-java:1.68.1:exe:${os.detected.classifier}</pluginArtifact>
+            </configuration>
+            <executions>
+                <execution>
+                    <goals>
+                        <goal>compile</goal>
+                        <goal>compile-custom</goal>
+                    </goals>
+                </execution>
+            </executions>
+        </plugin>
+    </plugins>
+</build>
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+```
 
-## Suggestions for a good README
+# Patient Service
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+---
 
-## Name
-Choose a self-explaining name for your project.
+## Environment Variables (complete list)
+```bash
+BILLING_SERVICE_ADDRESS=billing-service;
+BILLING_SERVICE_GRPC_PORT=9005;
+JAVA_TOOL_OPTIONS=-agentlib:jdwp\=transport\=dt_socket,server\=y,suspend\=n,address\=*:5005;
+SPRING_DATASOURCE_PASSWORD=password;
+SPRING_DATASOURCE_URL=jdbc:postgresql://patient-service-db:5432/db;
+SPRING_DATASOURCE_USERNAME=admin_user;
+SPRING_JPA_HIBERNATE_DDL_AUTO=update;
+SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092;
+SPRING_SQL_INIT_MODE=always
+```
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+## gRPC Setup
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+Add the following to the `<dependencies>` section
+```
+<!--GRPC -->
+<dependency>
+    <groupId>io.grpc</groupId>
+    <artifactId>grpc-netty-shaded</artifactId>
+    <version>1.69.0</version>
+</dependency>
+<dependency>
+    <groupId>io.grpc</groupId>
+    <artifactId>grpc-protobuf</artifactId>
+    <version>1.69.0</version>
+</dependency>
+<dependency>
+    <groupId>io.grpc</groupId>
+    <artifactId>grpc-stub</artifactId>
+    <version>1.69.0</version>
+</dependency>
+<dependency> <!-- necessary for Java 9+ -->
+    <groupId>org.apache.tomcat</groupId>
+    <artifactId>annotations-api</artifactId>
+    <version>6.0.53</version>
+    <scope>provided</scope>
+</dependency>
+<dependency>
+    <groupId>net.devh</groupId>
+    <artifactId>grpc-spring-boot-starter</artifactId>
+    <version>3.1.0.RELEASE</version>
+</dependency>
+<dependency>
+    <groupId>com.google.protobuf</groupId>
+    <artifactId>protobuf-java</artifactId>
+    <version>4.29.1</version>
+</dependency>
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+```
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+Replace the `<build>` section with the following
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+```
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+<build>
+    <extensions>
+        <!-- Ensure OS compatibility for protoc -->
+        <extension>
+            <groupId>kr.motd.maven</groupId>
+            <artifactId>os-maven-plugin</artifactId>
+            <version>1.7.0</version>
+        </extension>
+    </extensions>
+    <plugins>
+        <!-- Spring boot / maven  -->
+        <plugin>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-maven-plugin</artifactId>
+        </plugin>
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+        <!-- PROTO -->
+        <plugin>
+            <groupId>org.xolstice.maven.plugins</groupId>
+            <artifactId>protobuf-maven-plugin</artifactId>
+            <version>0.6.1</version>
+            <configuration>
+                <protocArtifact>com.google.protobuf:protoc:3.25.5:exe:${os.detected.classifier}</protocArtifact>
+                <pluginId>grpc-java</pluginId>
+                <pluginArtifact>io.grpc:protoc-gen-grpc-java:1.68.1:exe:${os.detected.classifier}</pluginArtifact>
+            </configuration>
+            <executions>
+                <execution>
+                    <goals>
+                        <goal>compile</goal>
+                        <goal>compile-custom</goal>
+                    </goals>
+                </execution>
+            </executions>
+        </plugin>
+    </plugins>
+</build>
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+```
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+## Kafka Container
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+Copy/paste this line into the environment variables when running the container in intellij
+```
+KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094;KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER;KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@kafka:9093;KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT,PLAINTEXT:PLAINTEXT;KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:9094;KAFKA_CFG_NODE_ID=0;KAFKA_CFG_PROCESS_ROLES=controller,broker
+```
 
-## License
-For open source projects, say how it is licensed.
+## Kafka Producer Setup (Patient Service)
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+Add the following to `application.properties`
+```
+spring.kafka.consumer.key-deserializer=org.apache.kafka.common.serialization.StringDeserializer
+spring.kafka.consumer.value-deserializer=org.apache.kafka.common.serialization.ByteArrayDeserializer
+```
+
+
+# Notification Service
+
+---
+
+## Environment Vars
+
+```
+SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+```
+
+## Protobuf/Kafka 
+
+Dependencies (add in addition to whats there)
+
+```
+<dependency>
+    <groupId>org.springframework.kafka</groupId>
+    <artifactId>spring-kafka</artifactId>
+    <version>3.3.0</version>
+</dependency>
+
+<dependency>
+    <groupId>com.google.protobuf</groupId>
+    <artifactId>protobuf-java</artifactId>
+    <version>4.29.1</version>
+</dependency>
+```
+
+Update the build section in pom.xml with the following
+
+```
+    <build>
+        <extensions>
+            <!-- Ensure OS compatibility for protoc -->
+            <extension>
+                <groupId>kr.motd.maven</groupId>
+                <artifactId>os-maven-plugin</artifactId>
+                <version>1.7.0</version>
+            </extension>
+        </extensions>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+
+            <plugin>
+                <groupId>org.xolstice.maven.plugins</groupId>
+                <artifactId>protobuf-maven-plugin</artifactId>
+                <version>0.6.1</version>
+                <configuration>
+                    <protocArtifact>com.google.protobuf:protoc:3.25.5:exe:${os.detected.classifier}</protocArtifact>
+                    <pluginId>grpc-java</pluginId>
+                    <pluginArtifact>io.grpc:protoc-gen-grpc-java:1.68.1:exe:${os.detected.classifier}</pluginArtifact>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>compile</goal>
+                            <goal>compile-custom</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+```
+
+
+# Auth service
+
+Dependencies (add in addition to whats there)
+
+```
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+            <version>0.12.6</version>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <version>0.12.6</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-jackson</artifactId>
+            <version>0.12.6</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>2.6.0</version>
+        </dependency>
+        <dependency>
+          <groupId>com.h2database</groupId>
+          <artifactId>h2</artifactId>
+        </dependency>
+       
+```
+
+## Environment Variables
+
+```
+SPRING_DATASOURCE_PASSWORD=password
+SPRING_DATASOURCE_URL=jdbc:postgresql://auth-service-db:5432/db
+SPRING_DATASOURCE_USERNAME=admin_user
+SPRING_JPA_HIBERNATE_DDL_AUTO=update
+SPRING_SQL_INIT_MODE=always
+```
+
+
+## Data.sql
+
+```sql
+-- Ensure the 'users' table exists
+CREATE TABLE IF NOT EXISTS "users" (
+    id UUID PRIMARY KEY,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    role VARCHAR(50) NOT NULL
+);
+
+-- Insert the user if no existing user with the same id or email exists
+INSERT INTO "users" (id, email, password, role)
+SELECT '223e4567-e89b-12d3-a456-426614174006', 'testuser@test.com',
+       '$2b$12$7hoRZfJrRKD2nIm2vHLs7OBETy.LWenXXMLKf99W8M4PUwO6KB7fu', 'ADMIN'
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM "users"
+    WHERE id = '223e4567-e89b-12d3-a456-426614174006'
+       OR email = 'testuser@test.com'
+);
+
+
+
+```
+
+
+# Auth Service DB
+
+## Environment Variables
+
+```
+POSTGRES_DB=db;POSTGRES_PASSWORD=password;POSTGRES_USER=admin_user
+```
