@@ -1,4 +1,4 @@
-###### Copyright © 2025 Code Jackal | Original Course Material by Chris Blakely
+###### Copyright © 2026 Code Jackal | Original Course Material by Chris Blakely
 
 ---
 # Join the Discord Community
